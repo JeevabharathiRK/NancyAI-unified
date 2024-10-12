@@ -9,7 +9,7 @@ BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 BASE_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
 # Set your bot's webhook URL
-WEBHOOK_URL = "https://your-koyeb-app.koyeb.app/webhook"  # Replace with your actual deployment URL
+WEBHOOK_URL = "https://amateur-augustina-tamil-developer-5493a7ee.koyeb.app/webhook"  # Replace with your actual deployment URL
 
 
 @app.route('/webhook', methods=['POST'])
@@ -53,4 +53,4 @@ if __name__ == '__main__':
     set_webhook()
     
     # Start Flask server to listen to incoming webhook events
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=port)
