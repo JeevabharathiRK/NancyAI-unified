@@ -53,4 +53,5 @@ if __name__ == '__main__':
     set_webhook()
     
     # Start Flask server to listen to incoming webhook events
+    port = int(os.environ.get('PORT', 8000))  # Get the port from environment or default to 8000
     app.run(host="0.0.0.0", port=port)
