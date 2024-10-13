@@ -15,7 +15,7 @@ app = Flask(__name__)
 BASE_URL = f"https://api.telegram.org/bot7667169314:AAF1nnqQhFs_M1U3nQJ9CDS2UHP6apw7XbY"#{BOT_TOKEN}"
 
 # Set your bot's webhook URL
-WEBHOOK_URL = "https://amateur-augustina-tamil-developer-5493a7ee.koyeb.app/webhook"
+WEBHOOK_URL = "https://meta-ai-chatbot.onrender.com/webhook"#"https://amateur-augustina-tamil-developer-5493a7ee.koyeb.app/webhook"
 
 # Dictionary to store Nancy instances per user
 user_sessions = {}
