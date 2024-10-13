@@ -11,8 +11,8 @@ import signal
 app = Flask(__name__)
 
 # Your bot's token from environment variables
-BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
-BASE_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
+# BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+BASE_URL = f"https://api.telegram.org/bot7667169314:AAF1nnqQhFs_M1U3nQJ9CDS2UHP6apw7XbY"#{BOT_TOKEN}"
 
 # Set your bot's webhook URL
 WEBHOOK_URL = "https://amateur-augustina-tamil-developer-5493a7ee.koyeb.app/webhook"
