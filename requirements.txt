@@ -1,2 +1,4 @@
 Flask
 requests
+apscheduler
+meta-ai-api
