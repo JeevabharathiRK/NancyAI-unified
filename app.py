@@ -63,21 +63,22 @@ def handle_select_command(nancy, msg, msg_id, chat_id):
 
 def send_msg(text, message_id, chat_id):
     """Sends a message to the user."""
-    params = {"chat_id": chat_id, "text": text, "reply_to_message_id": message_id}
-    requests.get(BASE_URL + "/sendMessage", params=params)
+    payload = {"chat_id": chat_id, "text": text, "reply_to_message_id": message_id}
+    requests.post(BASE_URL + "/sendMessage", json=payload)
 
-def configure_webhook():
-    """Configures the webhook for Telegram bot."""
-    webhook_url = f"{BASE_URL}/setWebhook?url={WEBHOOK_URL}"
-    response = requests.get(webhook_url)
+def set_webhook():
+    """Set the webhook for Telegram."""
+    url = BASE_URL + "/setWebhook"
+    params = {"url": WEBHOOK_URL}
+    response = requests.get(url, params=params)
     if response.status_code == 200:
-        print("Webhook set successfully.")
+        print("Webhook set successfully!")
     else:
-        print(f"Failed to set webhook: {response.text}")
+        print("Failed to set webhook:", response.text)
 
 if __name__ == '__main__':
     # Set webhook when the app starts
-    configure_webhook()
+    set_webhook()
     
     # Start the Flask app
     app.run(host="0.0.0.0", port=int(os.environ.get('PORT', 8000)))
