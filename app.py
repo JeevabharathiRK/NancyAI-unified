@@ -62,7 +62,7 @@ def read_msg(nancy, data):
                 send_msg(analysis_result, msg_id, chat_id)
 
     except Exception as e:
-        send_msg("An error occurred while processing your request. Please try again...{srt(e)}", msg_id, chat_id)
+        send_msg("An error occurred while processing your request. Please try again...{str(e)}", msg_id, chat_id)
 
 def handle_select_command(nancy, msg, msg_id, chat_id):
     if msg.strip() == "/select":
