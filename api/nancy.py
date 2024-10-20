@@ -26,7 +26,7 @@ class Nancy:
         return self.chat_data[chat_id]['memory']
 
     @staticmethod
-    def get_key(val):
+    def get_key(self,val):
         for key, value in self.models.items():
             if value == val:
                 return key
