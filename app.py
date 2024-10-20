@@ -76,7 +76,7 @@ def handle_select_command(nancy, msg, msg_id, chat_id):
 
 def send_msg(text, message_id, chat_id):
     """Sends a message to the user."""
-    payload = {"chat_id": chat_id, "text": text, "reply_to_message_id": message_id}
+    payload = {"chat_id": chat_id, "text": text, "reply_to_message_id": message_id, "parse_mode": "Markdown"}
     requests.post(BASE_URL + "/sendMessage", json=payload)
 
 def set_webhook():
