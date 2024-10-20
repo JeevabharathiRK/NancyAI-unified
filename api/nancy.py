@@ -1,4 +1,5 @@
 import os
+import requests
 from langchain.chains import LLMChain
 from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate, MessagesPlaceholder
 from langchain_core.messages import SystemMessage
@@ -24,13 +25,6 @@ class Nancy:
                 'model': self.default_model
             }
         return self.chat_data[chat_id]['memory']
-
-    @staticmethod
-    def get_key(self,val):
-        for key, value in self.models.items():
-            if value == val:
-                return key
-        return "Invalid Key"
 
     def get_model_for_chat(self, chat_id):
         """Retrieve or create a model object for the specific chat_id."""
