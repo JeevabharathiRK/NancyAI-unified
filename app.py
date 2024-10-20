@@ -32,8 +32,8 @@ def read_msg(nancy, data):
                 if msg.startswith("/select"):
                     handle_select_command(nancy, msg, msg_id, chat_id)
                 elif msg.startswith("/model"):
-                    current_model = nancy.get_key(nancy.get_model_for_chat(chat_id))
-                    send_msg(f"Current model: {current_model}", msg_id, chat_id)
+                    current_model = nancy.get_model_for_chat(chat_id)
+                    send_msg(f"Current model: {"Meta-Llama" if current_model == "llama3-8b-8192" else "Google-gemma"}", msg_id, chat_id)
                 elif msg.startswith("/features"):
                     markdown_message ="""
 **Nancy AI: Big-Update 201024**
@@ -67,7 +67,7 @@ def read_msg(nancy, data):
 def handle_select_command(nancy, msg, msg_id, chat_id):
     if msg.strip() == "/select":
         available_models = ", ".join(nancy.models.keys())
-        send_msg(f"**Change model using the format:**  ```/use /select google-gemma``` or ```/use /select meta-llama```", msg_id, chat_id)
+        send_msg(f"**Change model using the format:**  ```copy /select google-gemma``` or ```copy /select meta-llama```", msg_id, chat_id)
         return
 
     model_key = msg.split()[1] if len(msg.split()) > 1 else None
@@ -75,7 +75,7 @@ def handle_select_command(nancy, msg, msg_id, chat_id):
 
     if new_model:
         old_model, updated_model = nancy.change_model_for_chat(chat_id, new_model)
-        send_msg(f"Model changed from {nancy.get_key(old_model)} to {nancy.get_key(updated_model)}.", msg_id, chat_id)
+        send_msg(f"Model changed from {"Meta-Llama" if old_model == "llama3-8b-8192" else "Google-gemma" } to {"Meta-Llama" if updated_model == "llama3-8b-8192" else "Google-gemma"}.", msg_id, chat_id)
     else:
         send_msg("Invalid model. Use /select to see available models.", msg_id, chat_id)
 
