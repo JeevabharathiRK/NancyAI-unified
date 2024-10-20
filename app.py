@@ -66,16 +66,18 @@ def send_msg(text, message_id, chat_id):
     params = {"chat_id": chat_id, "text": text, "reply_to_message_id": message_id}
     requests.get(BASE_URL + "/sendMessage", params=params)
 
-@app.route('/setWebhook', methods=['GET'])
-def set_webhook():
-    """Sets the webhook for Telegram bot."""
+def configure_webhook():
+    """Configures the webhook for Telegram bot."""
     webhook_url = f"{BASE_URL}/setWebhook?url={WEBHOOK_URL}"
     response = requests.get(webhook_url)
     if response.status_code == 200:
-        return jsonify({"status": "Webhook set successfully"})
+        print("Webhook set successfully.")
     else:
-        return jsonify({"status": "Failed to set webhook", "error": response.text})
+        print(f"Failed to set webhook: {response.text}")
 
 if __name__ == '__main__':
-    set_webhook()
+    # Set webhook when the app starts
+    configure_webhook()
+    
+    # Start the Flask app
     app.run(host="0.0.0.0", port=int(os.environ.get('PORT', 8000)))
