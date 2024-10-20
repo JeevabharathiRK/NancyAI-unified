@@ -26,6 +26,12 @@ class Nancy:
             }
         return self.chat_data[chat_id]['memory']
 
+    def get_key(val):
+        for key, value in self.models.items():
+            if value == val:
+                return key
+        return "Invalid Key"
+
     def get_model_for_chat(self, chat_id):
         """Retrieve or create a model object for the specific chat_id."""
         if chat_id not in self.chat_data:
