@@ -30,8 +30,21 @@ def read_msg(nancy, data):
             if msg.startswith("/select"):
                 handle_select_command(nancy, msg, msg_id, chat_id)
             elif msg.startswith("/model"):
-                current_model = nancy.get_model_for_chat(chat_id)
+                current_model = nancy.get_key(nancy.get_model_for_chat(chat_id))
                 send_msg(f"Current model: {current_model}", msg_id, chat_id)
+            elif msg.startswith("/features"):
+                markdown_message ="""
+**Nancy AI: Big-Update 201024**
+**Exciting New Features:**
+  • **24/7 Availability:** Nancy is now online around the clock!
+  • **Image & Caption Analysis:** Nancy can analyze both images and captions.
+  • **Dual AI Models:** Introducing two AI models:
+    • **Llama:** For text and image processing.
+    • **Gemma:** For text-based responses.
+  • **Enhanced Response Speed:** Experience a boost in response speed!
+  • **Improved Security:** And No logging of responses.
+"""
+                send_msg(markdown_message, msg_id, chat_id)
             else:
                 send_msg(nancy.prompt(msg, chat_id), msg_id, chat_id)
 
@@ -49,7 +62,7 @@ def read_msg(nancy, data):
 def handle_select_command(nancy, msg, msg_id, chat_id):
     if msg.strip() == "/select":
         available_models = ", ".join(nancy.models.keys())
-        send_msg(f"Available models: {available_models}", msg_id, chat_id)
+        send_msg(f"**Change model using the below format  ```/select google-gemma```  ```/select meta-llama```", msg_id, chat_id)
         return
 
     model_key = msg.split()[1] if len(msg.split()) > 1 else None
@@ -57,9 +70,9 @@ def handle_select_command(nancy, msg, msg_id, chat_id):
 
     if new_model:
         old_model, updated_model = nancy.change_model_for_chat(chat_id, new_model)
-        send_msg(f"Model changed from {old_model} to {updated_model}.", msg_id, chat_id)
+        send_msg(f"Model changed from {nancy.get_key(old_model)} to {nancy.get_key(updated_model)}.", msg_id, chat_id)
     else:
-        send_msg("Invalid model. Use /select to see available models.", msg_id, chat_id)
+        send_msg("Invalid model. Use ```/select``` to see available models.", msg_id, chat_id)
 
 def send_msg(text, message_id, chat_id):
     """Sends a message to the user."""
