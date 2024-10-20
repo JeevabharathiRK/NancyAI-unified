@@ -1,5 +1,4 @@
 import os
-import requests
 from langchain.chains import LLMChain
 from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate, MessagesPlaceholder
 from langchain_core.messages import SystemMessage
@@ -26,6 +25,7 @@ class Nancy:
             }
         return self.chat_data[chat_id]['memory']
 
+    @staticmethod
     def get_key(val):
         for key, value in self.models.items():
             if value == val:
