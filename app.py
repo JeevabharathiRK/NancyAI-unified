@@ -8,10 +8,22 @@ import signal
 
 app = Flask(__name__)
 
+<<<<<<< HEAD
 #Environment variables
 TG_BOT_TOKEN = os.environ['TG_BOT_TOKEN']
 WEBHOOK_URL = os.environ['WEBHOOK_URL']
 BASE_URL = f"https://api.telegram.org/bot{TG_BOT_TOKEN}"
+=======
+# Your bot's token from environment variables
+# BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+BASE_URL = f"https://api.telegram.org/bot7667169314:AAF1nnqQhFs_M1U3nQJ9CDS2UHP6apw7XbY"#{BOT_TOKEN}"
+
+# Set your bot's webhook URL
+WEBHOOK_URL = "https://meta-ai-chatbot.onrender.com/webhook"#"https://amateur-augustina-tamil-developer-5493a7ee.koyeb.app/webhook"
+
+# Dictionary to store Nancy instances per user
+user_sessions = {}
+>>>>>>> 0d24af1659b62b5e6b13abee5b3c9ab98ba05e1a
 
 nancy = Nancy()
 @app.route('/webhook', methods=['POST'])
