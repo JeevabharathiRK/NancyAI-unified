@@ -1,5 +1,5 @@
-.poetry-cache/
+.cache/
 __pycache__/
-/dist/
-/.pytest_cache/
-/venv/
+dist/
+.pytest_cache/
+env.dev
