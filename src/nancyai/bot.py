@@ -1,60 +1,328 @@
 import asyncio
 import logging
 import sys
+import random  # added
 from os import getenv
+from logging.handlers import RotatingFileHandler  # added
 from dotenv import load_dotenv
 
-from aiogram import Bot, Dispatcher, html
+load_dotenv()
+load_dotenv(".env.dev", override=True)
+
+from aiogram import Bot, Dispatcher, html, F
 from aiogram.client.default import DefaultBotProperties
-from aiogram.enums import ParseMode
-from aiogram.filters import CommandStart
-from aiogram.types import Message
+from aiogram.enums import ParseMode, ChatType
+from aiogram.filters import CommandStart, Command
+from aiogram.types import (
+    Message,
+)
 
-# Bot token can be obtained via https://t.me/BotFather
-load_dotenv(".env.dev")
+from .chatbot import get_ai_generator
+from .movie import MovieExtractor
+
 TOKEN = getenv("BOT_TOKEN")
+if not TOKEN:
+    raise RuntimeError("BOT_TOKEN not set. Add it to .env or .env.dev.")
 
-# All handlers should be attached to the Router (or Dispatcher)
+GROQ_API_KEY = getenv("GROQ_API_KEY")
+OMDB_API_KEY = getenv("OMDB_API_KEY")
 
 dp = Dispatcher()
 
+_ai = None
+_movie_extractor = None
+
+BOT_USERNAME = None
+PENDING_LINK_MEDIA = {}
+MOVIE_META = {}
+
+
+def ai():
+    global _ai
+    if _ai is None:
+        try:
+            _ai = get_ai_generator()
+            logging.info("AI generator initialized.")
+        except Exception as e:
+            logging.exception("AI init failed: %s", e)
+            _ai = None
+    return _ai
+
+
+def movie_extractor():
+    global _movie_extractor
+    if _movie_extractor is None:
+        if not (GROQ_API_KEY and OMDB_API_KEY):
+            logging.warning("Movie extractor disabled (missing GROQ_API_KEY or OMDB_API_KEY).")
+            return None
+        try:
+            _movie_extractor = MovieExtractor(groq_api_key=GROQ_API_KEY, omdb_api_key=OMDB_API_KEY)
+            logging.info("MovieExtractor initialized.")
+        except Exception as e:
+            logging.exception("MovieExtractor init failed: %s", e)
+            _movie_extractor = None
+    return _movie_extractor
+
+
+def _format_duration(runtime_str):
+    if not runtime_str or "min" not in runtime_str:
+        return None
+    try:
+        minutes = int(runtime_str.replace(" min", ""))
+        if minutes <= 0:
+            return None
+        hours = minutes // 60
+        mins = minutes % 60
+        parts = []
+        if hours > 0:
+            parts.append(f"{hours}h")
+        if mins > 0:
+            parts.append(f"{mins}m")
+        return " ".join(parts)
+    except (ValueError, TypeError):
+        return runtime_str
+
+
+def _format_movie_details(d):
+    if not d:
+        return None
+    lines = ['<b>Nancy Generated ↓</b>']
+    
+    quote_lines = []
+
+    title_line = d.get("Title")
+    if title_line:
+        year = d.get("Year")
+        full_title = f"{title_line} ({year})" if year else title_line
+        quote_lines.append(f"🎥 <b>Title : {html.quote(full_title)}</b>")
+
+    runtime = _format_duration(d.get("Runtime"))
+    if runtime:
+        quote_lines.append(f"⌚️ <b>Duration :</b> {html.quote(runtime)}")
+
+    genre = d.get("Genre")
+    if genre:
+        quote_lines.append(f"🎻 <b>Genre :</b> {html.quote(genre)}")
+
+    rated = d.get("Rated")
+    if rated and rated != "N/A":
+        cert = rated
+        if "13" in rated:
+            cert += " ⑬"
+        elif "16" in rated or "17" in rated or "R" in rated:
+            cert += " 🔞"
+        quote_lines.append(f"📝 <b>Certificate :</b> {html.quote(cert)}")
+
+    director = d.get("Director")
+    if director:
+        quote_lines.append(f"🎬 <b>Director :</b> {html.quote(director)}")
+
+    actors = d.get("Actors")
+    if actors:
+        quote_lines.append(f"👨🏻‍🎤 <b>Actors :</b> {html.quote(actors)}")
+
+    plot = d.get("Plot")
+    if plot:
+        quote_lines.append(f"🧨 <b>Plot :</b> {html.quote(plot)}")
+
+    imdb_rating = d.get("imdbRating")
+    if imdb_rating and imdb_rating != "N/A":
+        quote_lines.append(f"⭐️ <b>IMDB :</b> {html.quote(imdb_rating)} / 10")
+
+    if quote_lines:
+        lines.append(f"<blockquote>{'\n'.join(quote_lines)}</blockquote>")
+    
+    return "\n".join(lines) if len(lines) > 1 else None
+
 
 @dp.message(CommandStart())
-async def command_start_handler(message: Message) -> None:
-    """
-    This handler receives messages with `/start` command
-    """
-    # Most event objects have aliases for API methods that can be called in events' context
-    # For example if you want to answer to incoming message you can use `message.answer(...)` alias
-    # and the target chat will be passed to :ref:`aiogram.methods.send_message.SendMessage`
-    # method automatically or call API method directly via
-    # Bot instance: `bot.send_message(chat_id=message.chat.id, ...)`
-    await message.answer(f"Hello, {html.bold(message.from_user.full_name)}!")
+async def command_start_handler(message: Message):
+    await message.answer(f"Hello, {html.bold(message.from_user.full_name)}! Send media or text.")
+
+
+@dp.message(Command("clear"))
+async def clear_conversation_handler(message: Message):
+    generator = ai()
+    if not generator:
+        await message.reply("AI not ready.")
+        return
+    generator.clear_history(user_id=message.from_user.id)
+    await message.reply("Conversation memory cleared.")
+
+
+@dp.message(Command("status"))
+async def conversation_status_handler(message: Message):
+    generator = ai()
+    if not generator:
+        await message.reply("AI not ready.")
+        return
+    count = generator.history_length(user_id=message.from_user.id)
+    await message.reply(f"Messages in Memory: {count} of 15")
 
 
 @dp.message()
-async def echo_handler(message: Message) -> None:
-    """
-    Handler will forward receive a message back to the sender
+async def message_handler(message: Message):
+    if message.sticker and not (message.from_user and message.from_user.is_bot):
+        set_name = message.sticker.set_name
+        if not set_name:
+            try:
+                await message.answer_sticker(message.sticker.file_id)
+            except Exception as e:
+                logging.debug("Failed to echo sticker without set: %s", e)
+        else:
+            try:
+                sticker_set = await message.bot.get_sticker_set(set_name)
+                candidates = [s for s in sticker_set.stickers if s.file_id != message.sticker.file_id] or sticker_set.stickers
+                choice = random.choice(candidates)
+                await message.answer_sticker(choice.file_id)
+            except Exception:
+                logging.exception("Failed to fetch/send random sticker")
+        return
 
-    By default, message handler will handle all message types (like a text, photo, sticker etc.)
-    """
+    is_media = any([
+        message.photo,
+        message.video,
+        message.document,
+        getattr(message, "audio", None),
+        getattr(message, "voice", None),
+        getattr(message, "animation", None),
+        getattr(message, "video_note", None),
+    ])
+
+    if is_media:
+        original_caption = message.caption or ""
+        filename = None
+        if message.document:
+            filename = message.document.file_name
+        elif getattr(message, "video", None):
+            filename = getattr(message.video, "file_name", None) or "video"
+        elif message.animation:
+            filename = message.animation.file_name
+        elif message.audio:
+            filename = message.audio.file_name
+        else:
+            filename = "media"
+
+        logging.debug("Processing media filename=%s caption=%s", filename, original_caption)
+
+        extractor = movie_extractor()
+        details = None
+        if extractor:
+            try:
+                loop = asyncio.get_running_loop()
+                details = await loop.run_in_executor(
+                    None,
+                    extractor.process,
+                    filename,
+                    original_caption
+                )
+                logging.debug("Movie details (possibly fallback)=%s", details)
+            except Exception:
+                logging.exception("Movie extraction failed")
+
+        formatted = _format_movie_details(details)
+        if formatted:
+            new_caption = formatted
+            if original_caption.strip():
+                new_caption += f"\n\n<b>Original Caption ↓</b>\n💬 {html.quote(original_caption.strip())}"
+        else:
+            new_caption = html.quote(original_caption.strip()) if original_caption.strip() else "Media"
+
+        try:
+            if message.from_user:
+                if message.from_user.username:
+                    sender_link = f"https://t.me/{message.from_user.username}"
+                    sender_display = f"@{message.from_user.username}"
+                else:
+                    sender_link = f"tg://user?id={message.from_user.id}"
+                    sender_display = message.from_user.full_name or "User"
+                sender_segment = f'Sent by: <a href="{sender_link}">{html.quote(sender_display)}</a> | ⚡Powered by: <a href="https://t.me/Nancy_MetaAI_Bot">Nancy</a>'
+                if sender_segment not in new_caption:
+                    addition = f"\n\n{sender_segment}"
+                    if len(new_caption) + len(addition) <= 1024:
+                        new_caption += addition
+        except Exception:
+            logging.debug("Failed to append sender hyperlink", exc_info=True)
+
+        if new_caption.strip() == (original_caption or "").strip():
+            new_caption += "\u200B"
+
+        if len(new_caption) > 1020: 
+            new_caption = new_caption[:1017] + "..."
+
+        try:
+            copied = await message.bot.copy_message(
+                chat_id=message.chat.id,
+                from_chat_id=message.chat.id,
+                message_id=message.message_id,
+                caption=new_caption,
+                reply_markup=None
+            )
+            MOVIE_META[copied.message_id] = {
+                "details": details,
+                "original_caption": original_caption,
+                "filename": filename
+            }
+            logging.info("Media resent with hyperlink caption (message_id=%s).", copied.message_id)
+        except Exception:
+            logging.exception("Failed to copy media message")
+            await message.reply("Could not process media.")
+            return
+
+        try:
+            await message.delete()
+        except Exception as e:
+            logging.debug("Delete original failed: %s", e)
+        return
+
+    if not message.text:
+        return
+
+    txt = message.text.strip()
+    if txt.startswith('/'):
+        return
+
+    generator = ai()
+    if not generator:
+        await message.reply("AI not ready.")
+        return
+
     try:
-        # Send a copy of the received message
-        await message.send_copy(chat_id=message.chat.id)
-    except TypeError:
-        # But not all the types is supported to be copied so need to handle it
-        await message.answer("File type not supported!")
+        user_name = message.from_user.full_name or message.from_user.first_name or ""
+        reply = await generator.generate_reply(message.from_user.id, user_name, txt)
+        await message.reply(reply)
+    except Exception:
+        logging.exception("AI generation failed")
+        await message.reply("Error generating reply.")
 
 
 async def main_async():
-    # Initialize Bot instance with default bot properties which will be passed to all API calls
     bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-
-    # And the run events dispatching
     await dp.start_polling(bot)
 
 
 def main():
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+    log_file = getenv("BOT_LOG_FILE", "bot.log")
+    log_format = "%(asctime)s %(levelname)s %(name)s: %(message)s"
+
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(logging.Formatter(log_format))
+
+    file_handler = RotatingFileHandler(
+        log_file,
+        maxBytes=5 * 1024 * 1024,  # 5 MB
+        backupCount=3,
+        encoding="utf-8"
+    )
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(logging.Formatter(log_format))
+
+    logging.basicConfig(
+        level=logging.DEBUG,
+        handlers=[console_handler, file_handler]
+    )
+
+    logging.info("Logging initialized. Console=INFO, File=DEBUG, file=%s", log_file)
+
     asyncio.run(main_async())
