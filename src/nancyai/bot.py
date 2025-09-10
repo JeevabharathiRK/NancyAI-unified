@@ -1,7 +1,9 @@
 import asyncio
 import logging
 import sys
+import random  # added
 from os import getenv
+from logging.handlers import RotatingFileHandler  # added
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -13,9 +15,6 @@ from aiogram.enums import ParseMode, ChatType
 from aiogram.filters import CommandStart, Command
 from aiogram.types import (
     Message,
-    InlineKeyboardMarkup, InlineKeyboardButton,
-    CallbackQuery,
-    ReplyKeyboardMarkup, KeyboardButton
 )
 
 from .chatbot import get_ai_generator
@@ -35,7 +34,7 @@ _movie_extractor = None
 
 BOT_USERNAME = None
 PENDING_LINK_MEDIA = {}
-MOVIE_META = {}  # copied_message_id -> meta dict
+MOVIE_META = {}
 
 
 def ai():
@@ -87,8 +86,7 @@ def _format_duration(runtime_str):
 def _format_movie_details(d):
     if not d:
         return None
-
-    lines = ["<b>Nancy Generated ↓</b>"]
+    lines = ['<b>Nancy Generated ↓</b>']
     
     quote_lines = []
 
@@ -164,8 +162,21 @@ async def conversation_status_handler(message: Message):
 
 @dp.message()
 async def message_handler(message: Message):
-    # Ignore stickers
-    if message.sticker:
+    if message.sticker and not (message.from_user and message.from_user.is_bot):
+        set_name = message.sticker.set_name
+        if not set_name:
+            try:
+                await message.answer_sticker(message.sticker.file_id)
+            except Exception as e:
+                logging.debug("Failed to echo sticker without set: %s", e)
+        else:
+            try:
+                sticker_set = await message.bot.get_sticker_set(set_name)
+                candidates = [s for s in sticker_set.stickers if s.file_id != message.sticker.file_id] or sticker_set.stickers
+                choice = random.choice(candidates)
+                await message.answer_sticker(choice.file_id)
+            except Exception:
+                logging.exception("Failed to fetch/send random sticker")
         return
 
     is_media = any([
@@ -180,7 +191,6 @@ async def message_handler(message: Message):
 
     if is_media:
         original_caption = message.caption or ""
-        # Determine filename
         filename = None
         if message.document:
             filename = message.document.file_name
@@ -218,18 +228,27 @@ async def message_handler(message: Message):
         else:
             new_caption = html.quote(original_caption.strip()) if original_caption.strip() else "Media"
 
-        # Force change even if identical (append zero-width char if same)
+        try:
+            if message.from_user:
+                if message.from_user.username:
+                    sender_link = f"https://t.me/{message.from_user.username}"
+                    sender_display = f"@{message.from_user.username}"
+                else:
+                    sender_link = f"tg://user?id={message.from_user.id}"
+                    sender_display = message.from_user.full_name or "User"
+                sender_segment = f'Sent by: <a href="{sender_link}">{html.quote(sender_display)}</a> | ⚡Powered by: <a href="https://t.me/Nancy_MetaAI_Bot">Nancy</a>'
+                if sender_segment not in new_caption:
+                    addition = f"\n\n{sender_segment}"
+                    if len(new_caption) + len(addition) <= 1024:
+                        new_caption += addition
+        except Exception:
+            logging.debug("Failed to append sender hyperlink", exc_info=True)
+
         if new_caption.strip() == (original_caption or "").strip():
             new_caption += "\u200B"
 
-        if len(new_caption) > 1020:
+        if len(new_caption) > 1020: 
             new_caption = new_caption[:1017] + "..."
-
-        link_button_kb = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text="/Link@SadieSink", callback_data="ask_link")]
-            ]
-        )
 
         try:
             copied = await message.bot.copy_message(
@@ -237,14 +256,14 @@ async def message_handler(message: Message):
                 from_chat_id=message.chat.id,
                 message_id=message.message_id,
                 caption=new_caption,
-                reply_markup=link_button_kb
+                reply_markup=None
             )
             MOVIE_META[copied.message_id] = {
                 "details": details,
                 "original_caption": original_caption,
                 "filename": filename
             }
-            logging.info("Media resent with new caption (message_id=%s).", copied.message_id)
+            logging.info("Media resent with hyperlink caption (message_id=%s).", copied.message_id)
         except Exception:
             logging.exception("Failed to copy media message")
             await message.reply("Could not process media.")
@@ -256,7 +275,6 @@ async def message_handler(message: Message):
             logging.debug("Delete original failed: %s", e)
         return
 
-    # Text message handling
     if not message.text:
         return
 
@@ -270,60 +288,12 @@ async def message_handler(message: Message):
         return
 
     try:
-        reply = await asyncio.get_running_loop().run_in_executor(
-            None, generator.generate, message.from_user.id, txt
-        )
+        user_name = message.from_user.full_name or message.from_user.first_name or ""
+        reply = await generator.generate_reply(message.from_user.id, user_name, txt)
         await message.reply(reply)
     except Exception:
         logging.exception("AI generation failed")
         await message.reply("Error generating reply.")
-
-
-@dp.callback_query(F.data == "ask_link")
-async def handle_ask_link(callback: CallbackQuery):
-    meta = MOVIE_META.get(callback.message.message_id)
-    caption = callback.message.caption or ""
-    enhancement_tag = "Tap /link@SadieStreamBot"
-    if enhancement_tag not in caption:
-        note = f"\n\n🔗 {enhancement_tag} to request a link."
-        if len(caption) + len(note) <= 1024:
-            caption += note
-        else:
-            space_left = 1024 - len(note)
-            if space_left > 0:
-                caption = caption[:space_left - 3] + "..." + note
-
-    kb = ReplyKeyboardMarkup(
-        resize_keyboard=True,
-        one_time_keyboard=True,
-        keyboard=[[KeyboardButton(text="/link@SadieStreamBot")]],
-        input_field_placeholder="Tap /link@SadieStreamBot"
-    )
-    key = (callback.message.chat.id, callback.from_user.id)
-
-    old_id = PENDING_LINK_MEDIA.get(key)
-    if old_id:
-        try:
-            await callback.bot.delete_message(chat_id=callback.message.chat.id, message_id=old_id)
-        except Exception as e:
-            logging.exception("Failed to delete previous pending link media: %s", e)
-            pass
-
-    try:
-        copied = await callback.bot.copy_message(
-            chat_id=callback.message.chat.id,
-            from_chat_id=callback.message.chat.id,
-            message_id=callback.message.message_id,
-            reply_markup=kb,
-            caption=""
-        )
-        PENDING_LINK_MEDIA[key] = copied.message_id
-        if meta:
-            MOVIE_META[copied.message_id] = meta
-    except Exception as e:
-        logging.warning("Failed to resend media with keyboard: %s", e)
-
-    await callback.answer()
 
 
 async def main_async():
@@ -332,5 +302,27 @@ async def main_async():
 
 
 def main():
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    log_file = getenv("BOT_LOG_FILE", "bot.log")
+    log_format = "%(asctime)s %(levelname)s %(name)s: %(message)s"
+
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(logging.Formatter(log_format))
+
+    file_handler = RotatingFileHandler(
+        log_file,
+        maxBytes=5 * 1024 * 1024,  # 5 MB
+        backupCount=3,
+        encoding="utf-8"
+    )
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(logging.Formatter(log_format))
+
+    logging.basicConfig(
+        level=logging.DEBUG,
+        handlers=[console_handler, file_handler]
+    )
+
+    logging.info("Logging initialized. Console=INFO, File=DEBUG, file=%s", log_file)
+
     asyncio.run(main_async())

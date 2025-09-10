@@ -1,0 +1,29 @@
+2025-09-10 07:54:48,927 INFO root: Logging initialized. Console=INFO, File=DEBUG, file=bot.log
+2025-09-10 07:54:48,928 DEBUG asyncio: Using selector: EpollSelector
+2025-09-10 07:54:49,006 INFO aiogram.dispatcher: Start polling
+2025-09-10 07:54:55,666 INFO aiogram.dispatcher: Run polling for bot @Nancy_MetaAI_Bot id=7667169314 - 'Nancy..♡'
+2025-09-10 07:56:01,980 INFO root: AI generator initialized.
+2025-09-10 07:56:02,088 DEBUG groq._base_client: Request options: {'method': 'post', 'url': '/openai/v1/chat/completions', 'files': None, 'idempotency_key': 'stainless-python-retry-0962d0cf-c6d1-48a0-a6bf-a6cb44bf0eae', 'json_data': {'messages': [{'role': 'system', 'content': "You are Nancy, a helpful AI assistant. User name: ſǝǝʌɐ. Keep replies concise. Character style: I'm Nancy🦋 💕 Spreading kindness and positivity.Also If the received message is like a movie name ask them to send the movie file here there by you can review. (It is handled seperatly)"}, {'role': 'user', 'content': 'Hi'}], 'model': 'llama-3.1-8b-instant', 'max_tokens': 256, 'temperature': 0.7}}
+2025-09-10 07:56:02,097 DEBUG groq._base_client: Sending HTTP Request: POST https://api.groq.com/openai/v1/chat/completions
+2025-09-10 07:56:02,097 DEBUG httpcore.connection: connect_tcp.started host='api.groq.com' port=443 local_address=None timeout=5.0 socket_options=None
+2025-09-10 07:56:07,453 DEBUG httpcore.connection: connect_tcp.complete return_value=<httpcore._backends.sync.SyncStream object at 0x7a87b2918f50>
+2025-09-10 07:56:07,455 DEBUG httpcore.connection: start_tls.started ssl_context=<ssl.SSLContext object at 0x7a87b33caf50> server_hostname='api.groq.com' timeout=5.0
+2025-09-10 07:56:07,556 DEBUG httpcore.connection: start_tls.complete return_value=<httpcore._backends.sync.SyncStream object at 0x7a87b33d9010>
+2025-09-10 07:56:07,558 DEBUG httpcore.http11: send_request_headers.started request=<Request [b'POST']>
+2025-09-10 07:56:07,559 DEBUG httpcore.http11: send_request_headers.complete
+2025-09-10 07:56:07,560 DEBUG httpcore.http11: send_request_body.started request=<Request [b'POST']>
+2025-09-10 07:56:07,561 DEBUG httpcore.http11: send_request_body.complete
+2025-09-10 07:56:07,561 DEBUG httpcore.http11: receive_response_headers.started request=<Request [b'POST']>
+2025-09-10 07:56:08,068 DEBUG httpcore.http11: receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Wed, 10 Sep 2025 07:56:08 GMT'), (b'Content-Type', b'application/json'), (b'Transfer-Encoding', b'chunked'), (b'Connection', b'keep-alive'), (b'Content-Encoding', b'gzip'), (b'Cache-Control', b'private, max-age=0, no-store, no-cache, must-revalidate'), (b'vary', b'Origin'), (b'x-groq-region', b'bom'), (b'x-ratelimit-limit-requests', b'14400'), (b'x-ratelimit-limit-tokens', b'6000'), (b'x-ratelimit-remaining-requests', b'14399'), (b'x-ratelimit-remaining-tokens', b'5917'), (b'x-ratelimit-reset-requests', b'6s'), (b'x-ratelimit-reset-tokens', b'830ms'), (b'x-request-id', b'req_01k4s9zx3xeyhvqhm17vr731pj'), (b'via', b'1.1 google'), (b'cf-cache-status', b'DYNAMIC'), (b'Set-Cookie', b'__cf_bm=ZU4Yp_a8NvRhldifpKbxfS.FUgx8QPH5cQT8slTzFf0-1757490968-1.0.1.1-YfFQlBBG.a.U.Drllr_nuAH32p04XX_Wz6qBxe80qtXLslAUAoNqagSXgG3uFuMPOTiyJZwnQKWzvZZ.Zqjv7FZyiNQ83iAR6VfCoKbspC4; path=/; expires=Wed, 10-Sep-25 08:26:08 GMT; domain=.groq.com; HttpOnly; Secure; SameSite=None'), (b'Server', b'cloudflare'), (b'CF-RAY', b'97cd5df3cc237eea-MAA'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-09-10 07:56:08,069 INFO httpx: HTTP Request: POST https://api.groq.com/openai/v1/chat/completions "HTTP/1.1 200 OK"
+2025-09-10 07:56:08,070 DEBUG httpcore.http11: receive_response_body.started request=<Request [b'POST']>
+2025-09-10 07:56:08,071 DEBUG httpcore.http11: receive_response_body.complete
+2025-09-10 07:56:08,071 DEBUG httpcore.http11: response_closed.started
+2025-09-10 07:56:08,072 DEBUG httpcore.http11: response_closed.complete
+2025-09-10 07:56:08,072 DEBUG groq._base_client: HTTP Response: POST https://api.groq.com/openai/v1/chat/completions "200 OK" Headers({'date': 'Wed, 10 Sep 2025 07:56:08 GMT', 'content-type': 'application/json', 'transfer-encoding': 'chunked', 'connection': 'keep-alive', 'content-encoding': 'gzip', 'cache-control': 'private, max-age=0, no-store, no-cache, must-revalidate', 'vary': 'Origin', 'x-groq-region': 'bom', 'x-ratelimit-limit-requests': '14400', 'x-ratelimit-limit-tokens': '6000', 'x-ratelimit-remaining-requests': '14399', 'x-ratelimit-remaining-tokens': '5917', 'x-ratelimit-reset-requests': '6s', 'x-ratelimit-reset-tokens': '830ms', 'x-request-id': 'req_01k4s9zx3xeyhvqhm17vr731pj', 'via': '1.1 google', 'cf-cache-status': 'DYNAMIC', 'set-cookie': '__cf_bm=ZU4Yp_a8NvRhldifpKbxfS.FUgx8QPH5cQT8slTzFf0-1757490968-1.0.1.1-YfFQlBBG.a.U.Drllr_nuAH32p04XX_Wz6qBxe80qtXLslAUAoNqagSXgG3uFuMPOTiyJZwnQKWzvZZ.Zqjv7FZyiNQ83iAR6VfCoKbspC4; path=/; expires=Wed, 10-Sep-25 08:26:08 GMT; domain=.groq.com; HttpOnly; Secure; SameSite=None', 'server': 'cloudflare', 'cf-ray': '97cd5df3cc237eea-MAA', 'alt-svc': 'h3=":443"; ma=86400'})
+2025-09-10 07:56:09,431 INFO aiogram.event: Update id=434286401 is handled. Duration 7717 ms by bot id=7667169314
+2025-09-10 07:57:02,607 WARNING aiogram.dispatcher: Received SIGINT signal
+2025-09-10 07:57:02,608 INFO aiogram.dispatcher: Polling stopped for bot @Nancy_MetaAI_Bot id=7667169314 - 'Nancy..♡'
+2025-09-10 07:57:02,609 INFO aiogram.dispatcher: Polling stopped
+2025-09-10 07:57:03,113 DEBUG httpcore.connection: close.started
+2025-09-10 07:57:03,114 DEBUG httpcore.connection: close.complete
