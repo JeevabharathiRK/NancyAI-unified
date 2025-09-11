@@ -1,2 +1,2 @@
-# AI-Chatbot-LlamaAndGemma
+# NancyAI
 Equipping Nancy v2.0 ..🦋
