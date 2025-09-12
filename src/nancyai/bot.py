@@ -83,10 +83,10 @@ def _format_duration(runtime_str):
         return runtime_str
 
 
-def _format_movie_details(d):
+def _format_movie_details(d, heading='Nancy Generated ↓'):
     if not d:
         return None
-    lines = ['<b>Nancy Generated ↓</b>']
+    lines = [f'<b>{heading}</b>']
     
     quote_lines = []
 
@@ -133,6 +133,46 @@ def _format_movie_details(d):
         lines.append(f"<blockquote>{'\n'.join(quote_lines)}</blockquote>")
     
     return "\n".join(lines) if len(lines) > 1 else None
+
+
+def _format_metadata_details(meta, heading='Filename + Caption Metadata ↓'):
+    """
+    Format secondary extracted technical metadata similarly to movie details.
+    Expects keys: Size, Duration, Audio, Quality, HD, Subtitles, Video, AudioDetails
+    """
+    if not meta or not isinstance(meta, dict):
+        return None
+
+    order = [
+        ("Size", "💾", "Size"),
+        ("Duration", "⌚️", "Duration"),
+        ("Audio", "🔊", "Audio"),
+        ("Quality", "🎞", "Quality"),
+        ("HD", "🟩", "HD"),
+        ("Subtitles", "💬", "Subtitles"),
+        ("Video", "🎬", "Video"),
+        ("AudioDetails", "🎧", "Audio Details"),
+    ]
+    lines = [f"<b>{heading}</b>"]
+    quote_lines = []
+    for key, emoji, label in order:
+        val = meta.get(key)
+        if val in (None, "", "null", "None"):
+            continue
+        # Normalize booleans for HD
+        if key == "HD":
+            if isinstance(val, bool):
+                val = "Yes" if val else "No"
+            elif str(val).lower() in ("yes", "true", "1", "y"):
+                val = "Yes"
+            elif str(val).lower() in ("no", "false", "0", "n"):
+                val = "No"
+        quote_lines.append(f"{emoji} <b>{label} :</b> {html.quote(str(val))}")
+
+    if not quote_lines:
+        return None
+    lines.append(f"<blockquote>{'\n'.join(quote_lines)}</blockquote>")
+    return "\n".join(lines)
 
 
 @dp.message(CommandStart())
@@ -216,17 +256,72 @@ async def message_handler(message: Message):
                     filename,
                     original_caption
                 )
-                logging.debug("Movie details (possibly fallback)=%s", details)
+                logging.debug("Movie details (primary)=%s", details)
             except Exception:
-                logging.exception("Movie extraction failed")
+                logging.exception("Movie extraction failed (primary)")
 
         formatted = _format_movie_details(details)
         if formatted:
             new_caption = formatted
-            if original_caption.strip():
-                new_caption += f"\n\n<b>Original Caption ↓</b>\n💬 {html.quote(original_caption.strip())}"
+
+            # Secondary metadata extraction using extract_movie_metadata on filename + caption
+            metadata_formatted = None
+            if extractor:
+                try:
+                    combo_text = f"{filename or ''} {original_caption}".strip()
+                    if combo_text:
+                        loop = asyncio.get_running_loop()
+                        raw_meta = await loop.run_in_executor(
+                            None,
+                            extractor.extract_movie_metadata,
+                            combo_text
+                        )
+
+                        # If primary runtime available, override Duration
+                        if raw_meta and details and details.get("Runtime"):
+                            runtime_human = _format_duration(details.get("Runtime"))
+                            if runtime_human:
+                                raw_meta["Duration"] = runtime_human
+
+                        metadata_formatted = _format_metadata_details(
+                            raw_meta,
+                            heading='Metadata:'
+                        )
+                except Exception:
+                    logging.exception("Metadata extraction failed (secondary)")
+                    metadata_formatted = None
+
+            if metadata_formatted:
+                new_caption += f"\n\n{metadata_formatted}"
+            else:
+                # Fallback only if no metadata and there was an original caption
+                if original_caption.strip():
+                    new_caption += f"\n\n<b>Original Caption ↓</b>\n💬 {html.quote(original_caption.strip())}"
         else:
-            new_caption = html.quote(original_caption.strip()) if original_caption.strip() else "Media"
+            # No primary movie details; still try metadata before final fallback
+            extractor = movie_extractor()
+            metadata_formatted = None
+            if extractor:
+                try:
+                    combo_text = f"{filename or ''} {original_caption}".strip()
+                    if combo_text:
+                        loop = asyncio.get_running_loop()
+                        raw_meta = await loop.run_in_executor(
+                            None,
+                            extractor.extract_movie_metadata,
+                            combo_text
+                        )
+                        metadata_formatted = _format_metadata_details(
+                            raw_meta,
+                            heading='Metadata:'
+                        )
+                except Exception:
+                    logging.exception("Metadata extraction failed (only pass)")
+
+            if metadata_formatted:
+                new_caption = metadata_formatted
+            else:
+                new_caption = html.quote(original_caption.strip()) if original_caption.strip() else "Media"
 
         try:
             if message.from_user:
