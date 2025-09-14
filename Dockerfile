@@ -11,20 +11,27 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# System deps (build tools for aiohttp/yarl, SSL/ffi headers, git for VCS deps)
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates curl \
+ && apt-get install -y --no-install-recommends \
+      build-essential \
+      python3-dev \
+      libffi-dev \
+      libssl-dev \
+      ca-certificates \
+      git \
  && rm -rf /var/lib/apt/lists/*
 
-# Poetry 2.1.4 as requested
+# Poetry 2.1.4
 RUN pip install --no-cache-dir "poetry==2.1.4"
 
-# Install dependency groups (runtime only) without installing the project yet
+# Install dependencies first for better caching
 COPY pyproject.toml poetry.lock* ./
-RUN poetry install --no-interaction --no-ansi --only main --no-root
+RUN poetry install --no-interaction --no-ansi --no-root
 
-# Copy source and install the project (to provide the "nancy" console script)
+# Copy source and install the project (provides console scripts, etc.)
 COPY src ./src
-RUN poetry install --no-interaction --no-ansi --only main
+RUN poetry install --no-interaction --no-ansi
 
 # Non-root user and writable log dir
 RUN addgroup --system app \
@@ -35,6 +42,5 @@ USER app
 
 EXPOSE 8000
 
-# Run via Poetry
-CMD ["poetry", "run", "python", "-m", "nancyai.bot"]
-
+# Run with Poetry; use module entrypoint to avoid relying on a console script name
+CMD ["poetry", "run", "nancy"]
