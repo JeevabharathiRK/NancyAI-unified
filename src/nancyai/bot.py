@@ -5,6 +5,7 @@ import random  # added
 from os import getenv
 from logging.handlers import RotatingFileHandler  # added
 from dotenv import load_dotenv
+from pathlib import Path  # added
 
 load_dotenv()
 load_dotenv(".env.dev", override=True)
@@ -16,6 +17,8 @@ from aiogram.filters import CommandStart, Command
 from aiogram.types import (
     Message,
 )
+from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
+from aiohttp import web
 
 from .chatbot import get_ai_generator
 from .movie import MovieExtractor
@@ -27,7 +30,13 @@ if not TOKEN:
 GROQ_API_KEY = getenv("GROQ_API_KEY")
 OMDB_API_KEY = getenv("OMDB_API_KEY")
 LOG_CHANNEL_ID = getenv("LOG_CHANNEL_ID")
+WEBHOOK_HOST = getenv("WEBHOOK_HOST", "")
+if WEBHOOK_HOST and WEBHOOK_HOST.endswith('/'):
+    WEBHOOK_HOST = WEBHOOK_HOST[:-1]
+WEBHOOK_PATH = "/webhook"
+WEBHOOK_URL = f"{WEBHOOK_HOST}{WEBHOOK_PATH}"
 
+bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
 
 _ai = None
@@ -200,6 +209,13 @@ async def conversation_status_handler(message: Message):
     count = generator.history_length(user_id=message.from_user.id)
     await message.reply(f"Messages in Memory: {count} of 15")
 
+@dp.message(Command("log"))
+async def log_command_handler(message: Message):
+    await message.reply(f"Log Link: {WEBHOOK_HOST}/")
+
+@dp.message(Command("help"))
+async def help_command_handler(message: Message):
+    await message.reply("Available commands: /start, /clear, /status, /log, /help")
 
 @dp.message()
 async def message_handler(message: Message):
@@ -419,20 +435,63 @@ async def message_handler(message: Message):
         logging.exception("AI generation failed")
         await message.reply("Error generating reply.")
 
+# --- Webhook Setup ---
+async def on_startup(app: web.Application):
+    # Set webhook when starting
+    try:
+        await bot.delete_webhook()
+    except Exception:
+        logging.debug("Failed to delete existing webhook (may not exist).")
+    try:
+        await asyncio.sleep(1)  # brief pause to ensure deletion
+        await bot.get_webhook_info()  # just to log current info
+    except Exception:
+        logging.debug("Failed to get webhook info (may not exist).")
+    logging.info("Setting webhook to %s", WEBHOOK_URL)
+    await bot.set_webhook(WEBHOOK_URL)
 
-async def main_async():
-    bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-    await dp.start_polling(bot)
 
+async def on_shutdown(app: web.Application):
+    # Remove webhook when shutting down
+    logging.info("Shutting down, removing webhook.")
+    await bot.delete_webhook()
+
+# added: serve log file at "/"
+async def view_log(request: web.Request):
+    log_path = getenv("BOT_LOG_FILE", "bot.log")
+    try:
+        p = Path(log_path)
+        if not p.exists():
+            return web.Response(
+                text="Log file not found.",
+                status=404,
+                content_type="text/plain",
+                charset="utf-8",
+            )
+        return web.FileResponse(
+            path=str(p),
+            headers={
+                "Cache-Control": "no-cache",
+                "Content-Type": "text/plain; charset=utf-8",
+            },
+        )
+    except Exception:
+        logging.exception("Failed to serve log file")
+        return web.Response(
+            text="Error loading log.",
+            status=500,
+            content_type="text/plain",
+            charset="utf-8",
+        )
 
 def main():
+
+    # Setup logging
     log_file = getenv("BOT_LOG_FILE", "bot.log")
     log_format = "%(asctime)s %(levelname)s %(name)s: %(message)s"
-
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(logging.INFO)
     console_handler.setFormatter(logging.Formatter(log_format))
-
     file_handler = RotatingFileHandler(
         log_file,
         maxBytes=5 * 1024 * 1024,  # 5 MB
@@ -446,7 +505,23 @@ def main():
         level=logging.DEBUG,
         handlers=[console_handler, file_handler]
     )
-
     logging.info("Logging initialized. Console=INFO, File=DEBUG, file=%s", log_file)
 
-    asyncio.run(main_async())
+    # Start bot
+    app = web.Application()
+
+    # Register webhook handler
+    webhook_handler = SimpleRequestHandler(dispatcher=dp, bot=bot)
+    webhook_handler.register(app, path=WEBHOOK_PATH)
+
+    # added: root path shows the log
+    app.router.add_get("/", view_log)
+
+    # Setup startup and shutdown
+    app.on_startup.append(on_startup)
+    app.on_shutdown.append(on_shutdown)
+
+    # Run aiohttp app
+    setup_application(app, dp, bot=bot)
+    logging.info("Bot started with webhook at %s", WEBHOOK_URL)
+    web.run_app(app, host="0.0.0.0", port=8000)
