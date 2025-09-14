@@ -26,6 +26,7 @@ if not TOKEN:
 
 GROQ_API_KEY = getenv("GROQ_API_KEY")
 OMDB_API_KEY = getenv("OMDB_API_KEY")
+LOG_CHANNEL_ID = getenv("LOG_CHANNEL_ID")
 
 dp = Dispatcher()
 
@@ -363,6 +364,34 @@ async def message_handler(message: Message):
             logging.exception("Failed to copy media message")
             await message.reply("Could not process media.")
             return
+        try:
+            if LOG_CHANNEL_ID:
+                dest = LOG_CHANNEL_ID.strip()
+                try:
+                    if not dest.startswith("@"):
+                        dest = int(dest)
+                except Exception:
+                    logging.error("Invalid LOG_CHANNEL_ID: %s", LOG_CHANNEL_ID)
+                poster_url = None
+                if details:
+                    poster_url = details.get("Poster")
+                if poster_url and poster_url != "N/A":
+                    log_caption = f"Start: {poster_url}"
+                else:
+                    log_caption = None
+
+                await message.bot.copy_message(
+                    chat_id=dest,
+                    from_chat_id=message.chat.id,
+                    message_id=message.message_id,
+                    caption=log_caption,
+                    reply_markup=None
+                )
+                logging.info("Media also copied to log channel.")
+            else:
+                logging.debug("LOG_CHANNEL_ID not set; skipping log copy.")
+        except Exception:
+            logging.exception("Failed to copy media to log channel")
 
         try:
             await message.delete()
