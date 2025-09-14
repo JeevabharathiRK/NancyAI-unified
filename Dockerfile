@@ -1,6 +1,5 @@
 # syntax=docker/dockerfile:1
 
-# Minimal, production-ready image for NancyAI bot
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -16,15 +15,16 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl \
  && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir "poetry==1.8.3"
+# Poetry 2.1.4 as requested
+RUN pip install --no-cache-dir "poetry==2.1.4"
 
-# Install deps first for better caching
+# Install dependency groups (runtime only) without installing the project yet
 COPY pyproject.toml poetry.lock* ./
-RUN poetry install --no-interaction --no-ansi --only main
+RUN poetry install --no-interaction --no-ansi --only main --no-root
 
-# Copy source
+# Copy source and install the project (to provide the "nancy" console script)
 COPY src ./src
-ENV PYTHONPATH=/app/src
+RUN poetry install --no-interaction --no-ansi --only main
 
 # Non-root user and writable log dir
 RUN addgroup --system app \
@@ -35,6 +35,6 @@ USER app
 
 EXPOSE 8000
 
-# Run via Poetry as requested
+# Run via Poetry
 CMD ["poetry", "run", "python", "-m", "nancyai.bot"]
 
