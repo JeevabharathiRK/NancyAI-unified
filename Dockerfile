@@ -1,39 +1,30 @@
-# syntax=docker/dockerfile:1
 FROM python:3.12-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    POETRY_VIRTUALENVS_CREATE=false \
-    BOT_LOG_FILE=/data/bot.log
-
+# Install build deps
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates curl \
- && rm -rf /var/lib/apt/lists/*
+    && apt-get install -y --no-install-recommends \
+       gcc libffi-dev libssl-dev build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Install Poetry
-RUN pip install --upgrade pip && pip install "poetry==2.1.4"
+# Copy dependency files
+COPY pyproject.toml poetry.lock* /app/
 
-# Copy project metadata first for better layer caching
-COPY pyproject.toml poetry.lock* ./
-# Install only main/runtime deps; don’t install project package as editable
-RUN poetry install --only main --no-interaction --no-ansi
+# Install poetry (just to export deps)
+RUN pip install "poetry==2.1.4"
 
-# Copy source
-COPY src ./src
+# Export Poetry deps → requirements.txt → pip install
+RUN poetry self add poetry-plugin-export
+RUN poetry export -f requirements.txt --without-hashes -o requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy app source
+COPY . /app
+
 ENV PYTHONPATH=/app/src
-
-# Create non-root user and writable log dir
-RUN addgroup --system app \
- && adduser --system --ingroup app app \
- && mkdir -p /data \
- && chown -R app:app /data /app
-USER app
-
+# Expose bot server port
 EXPOSE 8000
 
-# If you have a console_script named "nancy", switch CMD to ["poetry", "run", "nancy"]
-CMD ["poetry", "run", "nancy"]
+# Start bot
+CMD ["python", "-m", "nancyai.bot"]
