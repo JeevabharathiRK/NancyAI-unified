@@ -91,3 +91,50 @@ class MovieExtractor:
             logging.warning("Could not extract movie name from filename: %s", filename)
             return None
         return self.get_movie_details(movie_name, year)
+
+    def extract_movie_metadata(self, text):
+        """
+        Extracts movie metadata such as Size, Duration, Audio, Quality, HD, Subtitles, Video, Audio details.
+        Returns a dictionary with these keys. If a value is not available, it is set to None.
+        """
+        prompt = f"""
+        Extract the following movie metadata from this text:
+        example:
+        - Size (e.g., "1.5GB")
+        - Duration (e.g., "2h 35m")
+        - Audio (languages, e.g., "Tamil, English")
+        - Quality (e.g., "1080p")
+        - HD (Yes/No)
+        - Subtitles (e.g., "English")
+        - Video (e.g., "HEVC H.265 MKV")
+        - Audio details (e.g., "DD+5.1 - 192Kbps & AAC")
+
+        Return the result in JSON format with keys: Size, Duration, Audio, Quality, HD, Subtitles, Video, AudioDetails.
+        If any value is not available, set it to null.
+
+        Text: "{text}"
+        """
+
+        response = self.groq_client.chat.completions.create(
+            model=self.model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0
+        )
+
+        response_content = response.choices[0].message.content
+
+        # Extract JSON string from the response content
+        json_match = re.search(r'```json\s*(.*?)\s*```', response_content, re.DOTALL)
+        if json_match:
+            json_string = json_match.group(1)
+            try:
+                data = json.loads(json_string)
+                # Ensure all keys are present, set missing ones to None
+                keys = ["Size", "Duration", "Audio", "Quality", "HD", "Subtitles", "Video", "AudioDetails"]
+                metadata = {key: data.get(key) if data.get(key) is not None else None for key in keys}
+                return metadata
+            except json.JSONDecodeError:
+                return {key: None for key in ["Size", "Duration", "Audio", "Quality", "HD", "Subtitles", "Video", "AudioDetails"]}
+        else:
+            return {key: None for key in ["Size", "Duration", "Audio", "Quality", "HD", "Subtitles", "Video", "AudioDetails"]}
+
