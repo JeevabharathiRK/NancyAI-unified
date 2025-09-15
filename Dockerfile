@@ -22,4 +22,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy app source
 COPY . /app
 
+ENV PYTHONPATH=/app/src
 CMD ["python", "-m", "nancyai.bot"]
