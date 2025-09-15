@@ -16,7 +16,7 @@ WORKDIR /app
 COPY pyproject.toml poetry.lock* /app/
 
 # ✅ Removed "--without dev" since you don’t have a dev group
-RUN poetry install --no-interaction --no-ansi
+RUN poetry install
 
 COPY . /app
 
