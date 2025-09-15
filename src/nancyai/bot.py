@@ -525,3 +525,6 @@ def main():
     setup_application(app, dp, bot=bot)
     logging.info("Bot started with webhook at %s", WEBHOOK_URL)
     web.run_app(app, host="0.0.0.0", port=8000)
+
+if __name__ == "__main__":
+    main()
