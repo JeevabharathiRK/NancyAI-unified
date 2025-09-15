@@ -23,4 +23,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . /app
 
 ENV PYTHONPATH=/app/src
+# Expose bot server port
+EXPOSE 8000
+
+# Start bot
 CMD ["python", "-m", "nancyai.bot"]
