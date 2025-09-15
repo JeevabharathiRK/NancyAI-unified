@@ -15,6 +15,7 @@ COPY pyproject.toml poetry.lock* /app/
 RUN pip install "poetry==2.1.4"
 
 # Export Poetry deps → requirements.txt → pip install
+RUN poetry self add poetry-plugin-export
 RUN poetry export -f requirements.txt --without-hashes -o requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
