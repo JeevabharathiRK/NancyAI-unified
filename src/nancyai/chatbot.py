@@ -3,6 +3,7 @@ from collections import deque
 from groq import Groq
 
 MAX_TURNS = 15  # user<->bot pairs (15 user+15 bot messages stored)
+CHAT_AI_MODEL = os.getenv("CHAT_AI_MODEL", "llama-3.1-8b-instant")
 
 
 class AIResponseGenerator:
@@ -42,7 +43,7 @@ class AIResponseGenerator:
         messages.append({"role": "user", "content": text})
 
         completion = self.groq_client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model= CHAT_AI_MODEL,
             messages=messages,
             max_tokens=256,
             temperature=0.7,

@@ -7,7 +7,7 @@ from urllib3.util.retry import Retry
 from groq import Groq
 
 class MovieExtractor:
-    def __init__(self, groq_api_key, omdb_api_key, model="deepseek-r1-distill-llama-70b"):
+    def __init__(self, groq_api_key, omdb_api_key, model="llama-3.3-70b-versatile"):
         self.groq_client = Groq(api_key=groq_api_key, timeout=20.0)
         self.omdb_api_key = omdb_api_key
         self.model = model
@@ -19,7 +19,7 @@ class MovieExtractor:
             allowed_methods=("GET",)
         )
         self.session.mount("https://", HTTPAdapter(max_retries=retry))
-        self.session.headers.update({"User-Agent": "nancyai/2.0"})
+        self.session.headers.update({"User-Agent": "nancyai/2.1"})
 
     def _llm_extract(self, text):
         prompt = f"""
@@ -29,7 +29,7 @@ class MovieExtractor:
         """
 
         response = self.groq_client.chat.completions.create(
-            model="deepseek-r1-distill-llama-70b",  # or gemma2-9b-it
+            model=self.model,
             messages=[{"role": "user", "content": prompt}],
             temperature=0
         )

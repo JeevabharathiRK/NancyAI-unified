@@ -29,12 +29,14 @@ if not TOKEN:
 
 GROQ_API_KEY = getenv("GROQ_API_KEY")
 OMDB_API_KEY = getenv("OMDB_API_KEY")
+MOVIE_AI_MODEL = getenv("MOVIE_AI_MODEL")
 LOG_CHANNEL_ID = getenv("LOG_CHANNEL_ID")
 WEBHOOK_HOST = getenv("WEBHOOK_HOST", "")
 if WEBHOOK_HOST and WEBHOOK_HOST.endswith('/'):
     WEBHOOK_HOST = WEBHOOK_HOST[:-1]
 WEBHOOK_PATH = "/webhook"
 WEBHOOK_URL = f"{WEBHOOK_HOST}{WEBHOOK_PATH}"
+WEBHOOK_REMOVABLE = getenv("WEBHOOK_REMOVABLE", "false").lower() in ("1", "true", "yes", "y")
 
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
@@ -66,7 +68,7 @@ def movie_extractor():
             logging.warning("Movie extractor disabled (missing GROQ_API_KEY or OMDB_API_KEY).")
             return None
         try:
-            _movie_extractor = MovieExtractor(groq_api_key=GROQ_API_KEY, omdb_api_key=OMDB_API_KEY)
+            _movie_extractor = MovieExtractor(groq_api_key=GROQ_API_KEY, omdb_api_key=OMDB_API_KEY, model=MOVIE_AI_MODEL)
             logging.info("MovieExtractor initialized.")
         except Exception as e:
             logging.exception("MovieExtractor init failed: %s", e)
@@ -453,8 +455,10 @@ async def on_startup(app: web.Application):
 
 async def on_shutdown(app: web.Application):
     # Remove webhook when shutting down
-    logging.info("Shutting down, removing webhook.")
-    await bot.delete_webhook()
+    logging.info("Shutting down")
+    if WEBHOOK_REMOVABLE:
+        logging.info("Deleting webhook")
+        await bot.delete_webhook()
 
 # added: serve log file at "/"
 async def view_log(request: web.Request):
